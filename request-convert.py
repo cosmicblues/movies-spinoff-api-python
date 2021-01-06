@@ -2,7 +2,7 @@ import os
 import json
 import psycopg2
 import requests
-from psycopg2.extensions import register_adapter
+from psycopg2.extensions import AsIs
 
 mot_passe = os.environ.get('pg_psw')
 conn = psycopg2.connect(
@@ -46,6 +46,7 @@ sql_creer_table_movies = """
         Released VARCHAR(255),
         Runtime VARCHAR(255),
         Genre VARCHAR(255),
+        Director VARCHAR(255),
         Writer VARCHAR(255),
         Actors VARCHAR(255),
         Plot VARCHAR(255),
@@ -64,8 +65,8 @@ sql_creer_table_movies = """
         Production VARCHAR(255),
         Website VARCHAR(255),
         Response VARCHAR(255)
-        );
-    """
+        )
+        """
 
 sql_creer_table_ratings = """ 
     CREATE TABLE ratings (
@@ -121,15 +122,28 @@ def creer_table(conn, sql_creation_table):
     cursor.close()
     print("La table a été crée avec succès")
 
-def inserer_donnees(conn):
-    response = requests.get('http://www.omdbapi.com/?i=tt3896198&apikey=42ca02b7')
-    response_dict = response.json()
-    print(response_dict)
-    dataa = [response_dict]
+def inserer_donnees(conn, request):
+    ma_base_donnees = "python_data_api"
+    utilisateur = "postgres"
+    mot_passe = os.environ.get('pg_psw')
+    conn = ouvrir_connection(ma_base_donnees, utilisateur, mot_passe)
 
+    response = requests.get(request)
+    response_dict = response.json()
+    del response_dict["Ratings"]
+    
+    columns = response_dict.keys()
+    values = [response_dict[column] for column in columns]
+    
     cursor = conn.cursor()
-    q = "INSERT INTO python_data_api (Title, Year, Rated, Released, Runtime, Genre, Director, Writer, Actors, Plot, Language, Country, Awards, Poster, Ratings, Metascore, imbdRating, imbdVotes, imbdID, Type, DVD, BoxOffice, Production, Response) VALUES(%(Title)s, %(Year)s, %(Rated)s, %(Released)s, %(Runtime)s, %(Genre)s, %(Director)s, %(Writer)s, %(Actors)s, %(Plot)s, %(Language)s, %(Country)s, %(Awards)s, %(Poster)s, %(Ratings)s, %(Metascore)s, %(imbdRating)s, %(imbdVotes)s, %(imbdID)s, %(Type)s, %(DVD)s, %(BoxOffice)s, %(Production)s, %(Response)s), dataa"
-    cursor.execute(q, dataa)
+    columns_name = AsIs(','.join(columns))
+    print(columns_name)
+    insert_statement = f'insert into movies ({columns_name}) values {tuple(values)}'
+    #print(insert_statement)
+    cursor.execute(insert_statement)
     conn.commit()
 
-inserer_donnees(conn)
+#createbdd()
+#creer_table(conn, sql_creer_table_movies)
+inserer_donnees(conn, "http://www.omdbapi.com/?t=Batman&page=1&apikey=cfa14655")
+
